@@ -196,7 +196,7 @@ func (vs *VideoService) UpdatePopularity(ctx context.Context, id uint, change in
 	}
 
 	if vs.popularityMQ != nil {
-		if err := vs.popularityMQ.Update(ctx, id, change); err == nil {
+		if err := vs.popularityMQ.Update(ctx, id, int(change)); err == nil {
 			return nil
 		}
 	}

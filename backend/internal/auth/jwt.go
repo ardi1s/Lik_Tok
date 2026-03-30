@@ -1,4 +1,4 @@
-package auto
+package auth
 
 import (
 	"errors"
