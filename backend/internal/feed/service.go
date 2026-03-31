@@ -35,31 +35,13 @@ func NewFeedService(repo *FeedRepository, likeRepo *video.LikeRepository, redisc
 
 func (f *FeedService) GetVideoByIDs(ctx context.Context, videoIDs []uint) ([]*video.Video, error) {
 	// GetVideoByIDs 批量获取视频信息
-	// 采用 L1(本地缓存) -> L2(Redis) -> L3(MySQL) 三级架构
+	// 采用 L2(Redis) -> L3(MySQL) 两级架构（跳过 L1 本地缓存，避免数据不一致）
 	if len(videoIDs) == 0 {
 		return []*video.Video{}, nil
 	}
 
 	videoMap := make(map[uint]*video.Video)
-	//L1:本地缓存
-	var missedL1 []uint
-	for _, id := range videoIDs {
-		cacheKey := fmt.Sprintf("video:entity:%d", id)
-		if f.localcache != nil {
-			if v, found := f.localcache.Get(cacheKey); found {
-				if data, ok := v.(video.Video); ok {
-					videoMap[id] = &data
-					continue
-				}
-			}
-		}
-		// 记录未命中的 ID，准备进入下一级缓存
-		missedL1 = append(missedL1, id)
-	}
-
-	if len(missedL1) == 0 {
-		return buildOrderedResult(videoIDs, videoMap), nil
-	}
+	missedL1 := videoIDs
 
 	//L2:redis
 	var missedL2 []uint
@@ -188,7 +170,7 @@ func (f *FeedService) ListLatest(ctx context.Context, limit int, latestBefore ti
 			return ListLatestResponse{}, err
 		}
 		if v == "EMPTY_DB" {
-			return ListLatestResponse{HasMore: false}, nil
+			return ListLatestResponse{VideoList: []FeedVideoItem{}, HasMore: false}, nil
 		}
 
 		// 让所有被阻塞的请求重新查一遍
@@ -280,6 +262,11 @@ func (f *FeedService) ListLatest(ctx context.Context, limit int, latestBefore ti
 		return ListLatestResponse{}, err
 	}
 
+	// 确保返回空数组而不是 null
+	if feedVideos == nil {
+		feedVideos = []FeedVideoItem{}
+	}
+
 	return ListLatestResponse{
 		VideoList: feedVideos,
 		NextTime:  nextTime,
@@ -297,6 +284,10 @@ func (f *FeedService) ListLikesCount(ctx context.Context, limit int, cursor *Lik
 	feedVideos, err := f.buildFeedVideos(ctx, videos, viewerAccountID)
 	if err != nil {
 		return ListLikesCountResponse{}, err
+	}
+	// 确保返回空数组而不是 null
+	if feedVideos == nil {
+		feedVideos = []FeedVideoItem{}
 	}
 	resp := ListLikesCountResponse{
 		VideoList: feedVideos,
@@ -329,6 +320,10 @@ func (f *FeedService) ListByFollowing(ctx context.Context, limit int, latestBefo
 		feedVideos, err := f.buildFeedVideos(ctx, videos, viewerAccountID)
 		if err != nil {
 			return ListByFollowingResponse{}, err
+		}
+		// 确保返回空数组而不是 null
+		if feedVideos == nil {
+			feedVideos = []FeedVideoItem{}
 		}
 		resp := ListByFollowingResponse{
 			VideoList: feedVideos,
@@ -511,6 +506,7 @@ func (f *FeedService) ListByPopularity(ctx context.Context, limit int, reqAsOf i
 }
 
 func (f *FeedService) buildFeedVideos(ctx context.Context, videos []*video.Video, viewerAccountID uint) ([]FeedVideoItem, error) {
+	// 确保返回空数组而不是 nil
 	feedVideos := make([]FeedVideoItem, 0, len(videos))
 	videoIDs := make([]uint, len(videos))
 	for i, v := range videos {
@@ -518,7 +514,7 @@ func (f *FeedService) buildFeedVideos(ctx context.Context, videos []*video.Video
 	}
 	likedMap, err := f.likeRepo.BatchGetLiked(ctx, videoIDs, viewerAccountID)
 	if err != nil {
-		return nil, err
+		return feedVideos, err
 	}
 	for _, video := range videos {
 		feedVideos = append(feedVideos, FeedVideoItem{

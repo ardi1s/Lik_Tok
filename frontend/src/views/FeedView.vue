@@ -7,6 +7,7 @@ import FeedVideoCard from '../components/FeedVideoCard.vue'
 import { ApiError } from '../api/client'
 import * as feedApi from '../api/feed'
 import * as likeApi from '../api/like'
+import * as videoApi from '../api/video'
 import type { FeedVideoItem } from '../api/types'
 import { useAuthStore } from '../stores/auth'
 
@@ -55,6 +56,13 @@ const action = reactive<{ loading: boolean; error: string; payload: unknown; nam
 })
 
 const canLike = computed(() => auth.isLoggedIn)
+
+function canDelete(item: FeedVideoItem): boolean {
+  const userId = auth.claims?.account_id
+  const authorId = item.author.id
+  console.log('canDelete check:', { userId, authorId, isLoggedIn: auth.isLoggedIn, match: userId === authorId })
+  return auth.isLoggedIn && userId === authorId
+}
 
 async function runAction(name: string, fn: () => Promise<unknown>) {
   action.name = name
@@ -136,6 +144,19 @@ async function toggleLike(item: FeedVideoItem) {
   })
 }
 
+async function deleteVideo(item: FeedVideoItem) {
+  if (!confirm(`确定要删除视频 "${item.title}" 吗？此操作不可恢复。`)) return
+
+  await runAction('删除视频', async () => {
+    await videoApi.deleteVideo(item.id)
+    // 从列表中移除
+    latest.items = latest.items.filter(i => i.id !== item.id)
+    likesCount.items = likesCount.items.filter(i => i.id !== item.id)
+    following.items = following.items.filter(i => i.id !== item.id)
+    return { ok: true, deleted_id: item.id }
+  })
+}
+
 onMounted(async () => {
   await loadLatest(true)
   await loadLikesCount(true)
@@ -181,8 +202,10 @@ watch(
               :key="`latest-${item.id}`"
               :item="item"
               :can-like="canLike"
+              :can-delete="canDelete(item)"
               :busy="action.loading"
               @toggle-like="toggleLike"
+              @delete="deleteVideo"
             />
           </div>
         </div>
@@ -212,8 +235,10 @@ watch(
               :key="`likes-${item.id}`"
               :item="item"
               :can-like="canLike"
+              :can-delete="canDelete(item)"
               :busy="action.loading"
               @toggle-like="toggleLike"
+              @delete="deleteVideo"
             />
           </div>
         </div>
@@ -241,8 +266,10 @@ watch(
               :key="`following-${item.id}`"
               :item="item"
               :can-like="canLike"
+              :can-delete="canDelete(item)"
               :busy="action.loading"
               @toggle-like="toggleLike"
+              @delete="deleteVideo"
             />
           </div>
         </div>

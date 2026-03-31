@@ -26,3 +26,7 @@ export function listByAuthorId(authorId: number) {
 export function getDetail(id: number) {
   return postJson<Video>('/video/getDetail', { id })
 }
+
+export function deleteVideo(videoId: number) {
+  return postJson<{ success: boolean }>('/video/delete', { id: videoId }, { authRequired: true })
+}

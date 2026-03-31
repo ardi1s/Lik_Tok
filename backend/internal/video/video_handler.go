@@ -168,14 +168,8 @@ func randHex(n int) string {
 }
 
 func buildAbsoluteURL(c *gin.Context, p string) string {
-	scheme := "http"
-	if c.Request.TLS != nil {
-		scheme = "https"
-	}
-	if xf := c.GetHeader("X-Forwarded-Proto"); xf != "" {
-		scheme = xf
-	}
-	return fmt.Sprintf("%s://%s%s", scheme, c.Request.Host, p)
+	// 使用相对路径，避免 Docker 容器内外 host 不一致问题
+	return p
 }
 
 func (vh *VideoHandler) DeleteVideo(c *gin.Context) {

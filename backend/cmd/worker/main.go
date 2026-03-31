@@ -112,7 +112,7 @@ func main() {
 	videoRepo := video.NewVideoRepository(sqlDB)
 	likeRepo := video.NewLikeRepository(sqlDB)
 	commentRepo := video.NewCommentRepository(sqlDB)
-	likeWorker := worker.NewLikeWorker(ch, likeRepo, videoRepo, likeQueue)
+	likeWorker := worker.NewLikeWorker(ch, likeRepo, videoRepo, cache, likeQueue)
 	commentWorker := worker.NewCommentWorker(ch, commentRepo, videoRepo, commentQueue)
 	var popularityWorker *worker.PopularityWorker
 	if cache != nil {

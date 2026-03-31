@@ -17,7 +17,8 @@ import (
 
 func SetRouter(db *gorm.DB, cache *rediscache.Client, rmq *rabbitmq.RabbitMQ) *gin.Engine {
 	r := gin.Default()
-	r.Static("/static", "./.run/uploads")
+	// 使用绝对路径，兼容 Docker 容器环境
+	r.Static("/static", "/app/.run/uploads")
 	// account
 	accountRepository := account.NewAccountRepository(db)
 	accountService := account.NewAccountService(accountRepository, cache)
@@ -56,6 +57,7 @@ func SetRouter(db *gorm.DB, cache *rediscache.Client, rmq *rabbitmq.RabbitMQ) *g
 		protectedVideoGroup.POST("/uploadVideo", videoHandler.UploadVideo)
 		protectedVideoGroup.POST("/uploadCover", videoHandler.UploadCover)
 		protectedVideoGroup.POST("/publish", videoHandler.PublishVideo)
+		protectedVideoGroup.POST("/delete", videoHandler.DeleteVideo)
 	}
 	// like
 	likeMQ, err := rabbitmq.NewLikeMQ(rmq)
@@ -135,6 +137,12 @@ func SetRouter(db *gorm.DB, cache *rediscache.Client, rmq *rabbitmq.RabbitMQ) *g
 		socialMQ = nil
 	}
 	worker.StartOutboxPoller(db, timelineMQ)
+	// 声明消费者队列
+	if timelineMQ != nil {
+		if err := timelineMQ.DeclareTopic("timeline.events", "video.timeline.update.queue", "timeline.video"); err != nil {
+			log.Printf("声明消费者队列失败: %v", err)
+		}
+	}
 	worker.StartConsumer(timelineMQ, "video.timeline.update.queue", cache)
 	return r
 }

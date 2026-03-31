@@ -5,14 +5,20 @@ const props = defineProps<{
   item: FeedVideoItem
   canLike: boolean
   busy?: boolean
+  canDelete?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'toggle-like', item: FeedVideoItem): void
+  (e: 'delete', item: FeedVideoItem): void
 }>()
 
 function onToggle() {
   emit('toggle-like', props.item)
+}
+
+function onDelete() {
+  emit('delete', props.item)
 }
 </script>
 
@@ -22,16 +28,27 @@ function onToggle() {
       <img :src="item.cover_url" :alt="item.title" loading="lazy" />
     </div>
     <div class="content">
-      <div class="row" style="justify-content: space-between">
-        <div>
-          <div class="title">
-            <RouterLink :to="`/video/${item.id}`">{{ item.title }}</RouterLink>
+      <div class="row" style="justify-content: space-between; align-items: flex-start">
+        <div style="flex: 1">
+          <div class="title-row">
+            <RouterLink :to="`/video/${item.id}`" class="title">{{ item.title }}</RouterLink>
+            <button
+              v-if="canDelete"
+              class="delete-btn"
+              type="button"
+              :disabled="busy"
+              @click="onDelete"
+              title="删除此视频"
+            >
+              🗑️ 删除
+            </button>
+            <span v-else class="debug-info" style="font-size: 12px; color: #888;">canDelete={{ canDelete }}</span>
           </div>
           <div class="subtle">
             作者：{{ item.author.username }} (#{{ item.author.id }}) · 创建时间：{{ new Date(item.create_time * 1000).toLocaleString() }}
           </div>
         </div>
-        <div class="row">
+        <div class="row" style="flex-shrink: 0">
           <span class="pill mono">❤️ {{ item.likes_count }}</span>
           <button
             v-if="canLike"
@@ -79,6 +96,49 @@ function onToggle() {
 
 .content {
   padding: 12px 12px 14px;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.title:hover {
+  text-decoration: underline;
+}
+
+.delete-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 77, 79, 0.8);
+  background: rgba(255, 77, 79, 0.15);
+  color: #ff4d4f;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.delete-btn:hover {
+  background: rgba(255, 77, 79, 0.25);
+  border-color: rgba(255, 77, 79, 1);
+}
+
+.delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 900px) {

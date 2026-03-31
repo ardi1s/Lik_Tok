@@ -20,7 +20,7 @@ const social = useSocialStore()
 const toast = useToastStore()
 
 const userId = computed(() => Number(route.params.id))
-const myId = computed(() => auth.claims?.account_id ?? 0)
+const myId = computed(() => Number(auth.claims?.account_id ?? 0))
 const isMe = computed(() => myId.value > 0 && myId.value === userId.value)
 
 const state = reactive({
@@ -105,6 +105,22 @@ async function toggleFollow() {
   }
 }
 
+async function deleteVideo(video: Video) {
+  if (!confirm(`确定要删除视频 "${video.title}" 吗？此操作不可恢复。`)) return
+  try {
+    await videoApi.deleteVideo(video.id)
+    state.videos = state.videos.filter(v => v.id !== video.id)
+    toast.success('视频已删除')
+  } catch (e) {
+    const msg = e instanceof ApiError ? e.message : String(e)
+    toast.error(msg)
+  }
+}
+
+async function goVideo(videoId: number) {
+  await router.push(`/video/${videoId}`)
+}
+
 type ListTab = 'followers' | 'following'
 const drawer = reactive({
   open: false,
@@ -131,10 +147,6 @@ const listItems = computed(() => (drawer.tab === 'followers' ? state.followers :
 async function goUser(id: number) {
   drawer.open = false
   await router.push(`/u/${id}`)
-}
-
-async function goVideo(videoId: number) {
-  await router.push(`/video/${videoId}`)
 }
 
 watch(
@@ -205,13 +217,24 @@ onMounted(loadProfile)
       <div v-if="state.videos.length === 0" class="hint" style="margin-top: 12px">暂无作品</div>
 
       <div v-else class="video-grid" style="margin-top: 12px">
-        <button v-for="v in state.videos" :key="v.id" class="video-card" type="button" @click="goVideo(v.id)">
-          <img class="video-cover" :src="v.cover_url" :alt="v.title" loading="lazy" />
-          <div class="video-meta">
-            <div class="video-title">{{ v.title }}</div>
-            <div class="video-sub subtle">❤️ {{ v.likes_count }} · {{ new Date(v.create_time).toLocaleDateString() }}</div>
-          </div>
-        </button>
+        <div v-for="v in state.videos" :key="v.id" class="video-card-wrapper">
+          <button class="video-card" type="button" @click="goVideo(v.id)">
+            <img class="video-cover" :src="v.cover_url" :alt="v.title" loading="lazy" />
+            <div class="video-meta">
+              <div class="video-title">{{ v.title }}</div>
+              <div class="video-sub subtle">❤️ {{ v.likes_count }} · {{ new Date(v.create_time).toLocaleDateString() }}</div>
+            </div>
+          </button>
+          <button
+            v-if="isMe"
+            class="delete-btn"
+            type="button"
+            @click.stop="deleteVideo(v)"
+            title="删除视频"
+          >
+            🗑️ 删除
+          </button>
+        </div>
       </div>
     </div>
 
@@ -315,7 +338,12 @@ onMounted(loadProfile)
   }
 }
 
+.video-card-wrapper {
+  position: relative;
+}
+
 .video-card {
+  width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.05);
   border-radius: 16px;
@@ -353,6 +381,29 @@ onMounted(loadProfile)
 .video-sub {
   margin-top: 6px;
   font-size: 12px;
+}
+
+.delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 1px solid rgba(255, 77, 79, 0.8);
+  background: rgba(255, 77, 79, 0.9);
+  color: white;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 10;
+}
+
+.delete-btn:hover {
+  background: rgba(255, 77, 79, 1);
+  transform: scale(1.05);
 }
 
 .drawer-backdrop {
@@ -452,4 +503,3 @@ onMounted(loadProfile)
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 </style>
-

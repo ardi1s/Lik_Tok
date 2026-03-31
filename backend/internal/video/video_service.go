@@ -70,10 +70,13 @@ func (vs *VideoService) Publish(ctx context.Context, video *Video) error {
 func (vs *VideoService) Delete(ctx context.Context, id uint, authorID uint) error {
 	video, err := vs.repo.GetByID(ctx, id)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return errors.New("视频不存在或已被删除")
+		}
 		return err
 	}
 	if video == nil {
-		return errors.New("video not found")
+		return errors.New("视频不存在")
 	}
 	if video.AuthorID != authorID {
 		return errors.New("unauthorized")
@@ -82,8 +85,14 @@ func (vs *VideoService) Delete(ctx context.Context, id uint, authorID uint) erro
 		return err
 	}
 	if vs.cache != nil {
+		// 清除视频详情缓存
 		cacheKey := fmt.Sprintf("video:detail:id=%d", id)
 		_ = vs.cache.Del(context.Background(), cacheKey)
+		// 清除视频实体缓存
+		entityKey := fmt.Sprintf("video:entity:%d", id)
+		_ = vs.cache.Del(context.Background(), entityKey)
+		// 从全局时间线中移除
+		_ = vs.cache.ZRem(context.Background(), "feed:global_timeline", id)
 	}
 	return nil
 }
