@@ -86,8 +86,8 @@ func DefaultLocalConfig() Config {
 			Host:     "localhost",
 			Port:     3306,
 			User:     "root",
-			Password: "123456",
-			DBName:   "feedsystem",
+			Password: "",
+			DBName:   "Lik_tok",
 		},
 		Redis: RedisConfig{
 			Host:     "localhost",
