@@ -10,6 +10,7 @@ import (
 	"Lik_tok/internal/video"
 	"Lik_tok/internal/worker"
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -17,8 +18,12 @@ import (
 
 func SetRouter(db *gorm.DB, cache *rediscache.Client, rmq *rabbitmq.RabbitMQ) *gin.Engine {
 	r := gin.Default()
-	// 使用绝对路径，兼容 Docker 容器环境
-	r.Static("/static", "/app/.run/uploads")
+	// 静态文件路径：优先使用本地路径，如果不存在则使用 Docker 路径
+	staticPath := "./.run/uploads"
+	if _, err := os.Stat(staticPath); os.IsNotExist(err) {
+		staticPath = "/app/.run/uploads"
+	}
+	r.Static("/static", staticPath)
 	// account
 	accountRepository := account.NewAccountRepository(db)
 	accountService := account.NewAccountService(accountRepository, cache)
