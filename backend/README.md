@@ -25,6 +25,7 @@ backend/
 │   └── worker/
 │       └── main.go          # 工作进程入口
 ├── configs/
+│   ├── config.yaml          # 本地开发配置
 │   └── config.docker.yaml   # Docker 环境配置
 ├── internal/
 │   ├── account/             # 用户账户模块
@@ -41,7 +42,7 @@ backend/
 │   │   ├── jwt/             # JWT 认证
 │   │   ├── rabbitmq/        # RabbitMQ 客户端
 │   │   └── redis/           # Redis 客户端
-│   ├── observability/       # 监控和性能分析
+│   ├── observability/        # 监控和性能分析
 │   ├── social/              # 社交关系
 │   ├── video/               # 视频、点赞、评论
 │   └── worker/              # 后台任务处理器
@@ -83,29 +84,58 @@ backend/
 - 粉丝列表
 - 关注列表
 
-## 中间件
+## 配置文件
 
-### JWT 认证
-```go
-// 使用示例
-r.Use(jwt.JWT())
+### 本地开发配置 (`configs/config.yaml`)
+
+```yaml
+server:
+  port: 8080
+
+database:
+  host: localhost
+  port: 3306
+  user: root
+  password: "123456"
+  dbname: Lik_tok
+
+redis:
+  host: localhost
+  port: 6379
+  password: "123456"
+  db: 0
+
+rabbitmq:
+  host: localhost
+  port: 5672
+  username: guest
+  password: guest
 ```
 
-### Redis 缓存
-```go
-// 缓存操作
-cache.Set(ctx, key, value, expiration)
-cache.Get(ctx, key)
-cache.Del(ctx, key)
-```
+### Docker 配置 (`configs/config.docker.yaml`)
 
-### RabbitMQ
-```go
-// 发送消息
-mq.Publish(exchange, routingKey, body)
+```yaml
+server:
+  port: 8080
 
-// 消费消息
-mq.Consume(queue, handler)
+database:
+  host: mysql
+  port: 3306
+  user: root
+  password: "123456"
+  dbname: Lik_tok
+
+redis:
+  host: redis
+  port: 6379
+  password: "123456"
+  db: 0
+
+rabbitmq:
+  host: rabbitmq
+  port: 5672
+  username: guest
+  password: guest
 ```
 
 ## 数据库设计
@@ -204,43 +234,18 @@ CREATE TABLE socials (
 # 安装依赖
 go mod download
 
-# 运行服务
+# 运行 API 服务
 go run cmd/main.go
 
-# 运行工作进程
+# 运行工作进程（需要单独终端）
 go run cmd/worker/main.go
 ```
 
-### 配置说明
+### Docker 开发
 
-配置文件位于 `configs/config.docker.yaml`:
-
-```yaml
-server:
-  port: 8080
-  mode: release
-
-database:
-  host: mysql
-  port: 3306
-  user: root
-  password: 123456
-  dbname: Lik_tok
-
-redis:
-  host: redis
-  port: 6379
-  password: 123456
-
-rabbitmq:
-  host: rabbitmq
-  port: 5672
-  user: guest
-  password: guest
-
-jwt:
-  secret: your-secret-key
-  expiration: 720h
+```bash
+cd ../deploy/docker
+docker-compose up -d backend worker
 ```
 
 ### 添加新模块
@@ -268,13 +273,3 @@ jwt:
 - 点赞计数: RabbitMQ 异步更新
 - 评论计数: RabbitMQ 异步更新
 - 热度计算: 定时任务 + RabbitMQ
-
-## 测试
-
-```bash
-# 运行单元测试
-go test ./...
-
-# 运行基准测试
-go test -bench=. ./...
-```
