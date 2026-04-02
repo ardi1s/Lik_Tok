@@ -1,92 +1,128 @@
-# Lik_tok Backend
+# Lik_tok Backend ⚙️
 
-Go 实现的后端 API 服务，采用分层架构设计。
+> Go-based API server with layered architecture
 
-## 架构设计
+## 🏗️ Architecture
 
 ```
-┌─────────────┐
-│   Handler   │  ← HTTP 请求处理、参数校验
-├─────────────┤
-│   Service   │  ← 业务逻辑处理
-├─────────────┤
-│ Repository  │  ← 数据访问层
-├─────────────┤
-│  MySQL/Redis│  ← 数据存储
-└─────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                          Handler                             │
+│              HTTP Request / Response / Validation             │
+└──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────┐
+│                          Service                             │
+│                   Business Logic Processing                   │
+└──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────┐
+│                        Repository                            │
+│                    Data Access Layer (DAO)                    │
+└──────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+         ┌─────────┐    ┌─────────┐    ┌─────────┐
+         │  MySQL  │    │  Redis  │    │ RabbitMQ │
+         │ Storage │    │  Cache  │    │    MQ    │
+         └─────────┘    └─────────┘    └─────────┘
 ```
 
-## 目录结构
+## 📁 Directory Structure
 
 ```
 backend/
-├── cmd/
-│   ├── main.go              # API 服务入口
+├── cmd/                               # Application entry points
+│   ├── main.go                        # API server entry
 │   └── worker/
-│       └── main.go          # 工作进程入口
-├── configs/
-│   ├── config.yaml          # 本地开发配置
-│   └── config.docker.yaml   # Docker 环境配置
-├── internal/
-│   ├── account/             # 用户账户模块
-│   │   ├── entity.go        # 实体定义
-│   │   ├── handler.go       # HTTP 处理器
-│   │   ├── repo.go          # 数据访问
-│   │   └── service.go       # 业务逻辑
-│   ├── auth/                # JWT 认证
-│   ├── config/              # 配置管理
-│   ├── db/                  # 数据库连接
-│   ├── feed/                # Feed 推荐
-│   ├── http/                # HTTP 路由
-│   ├── middleware/          # 中间件
-│   │   ├── jwt/             # JWT 认证
-│   │   ├── rabbitmq/        # RabbitMQ 客户端
-│   │   └── redis/           # Redis 客户端
-│   ├── observability/        # 监控和性能分析
-│   ├── social/              # 社交关系
-│   ├── video/               # 视频、点赞、评论
-│   └── worker/              # 后台任务处理器
-├── go.mod
-└── go.sum
+│       └── main.go                    # Background worker entry
+│
+├── configs/                           # Configuration files
+│   ├── config.yaml                    # Local development
+│   └── config.docker.yaml             # Docker deployment
+│
+└── internal/                          # Internal packages
+    ├── account/                       # User account module
+    │   ├── entity.go                 # Data models
+    │   ├── handler.go                # HTTP handlers
+    │   ├── repo.go                   # Data access
+    │   └── service.go                # Business logic
+    │
+    ├── video/                         # Video module
+    │   ├── video_entity.go            # Video model
+    │   ├── like_entity.go            # Like model
+    │   ├── comment_entity.go          # Comment model
+    │   ├── *_handler.go              # HTTP handlers
+    │   ├── *_repo.go                 # Data access
+    │   └── *_service.go              # Business logic
+    │
+    ├── feed/                          # Feed module
+    │   ├── entity.go                 # Feed models
+    │   ├── handler.go
+    │   ├── repo.go
+    │   └── service.go
+    │
+    ├── social/                        # Social module
+    │   ├── entity.go
+    │   ├── handler.go
+    │   ├── repo.go
+    │   └── service.go
+    │
+    ├── middleware/                    # Middleware
+    │   ├── jwt/                      # JWT authentication
+    │   ├── redis/                    # Redis cache client
+    │   └── rabbitmq/                 # RabbitMQ client
+    │
+    ├── worker/                        # Background workers
+    │   ├── likeworker.go             # Like processor
+    │   ├── commentworker.go          # Comment processor
+    │   ├── socialworker.go            # Social processor
+    │   └── popularityworker.go       # Popularity calculator
+    │
+    ├── auth/                          # Authentication
+    ├── config/                        # Configuration loader
+    ├── db/                            # Database connection
+    └── observability/                  # Monitoring / PProf
 ```
 
-## 核心模块
+## 🔧 Core Modules
 
-### Account (用户账户)
-- 用户注册/登录
-- JWT Token 生成与验证
-- 密码修改
+### Account Module
+| Component | Description |
+|-----------|-------------|
+| `entity.go` | Account data model with validation |
+| `handler.go` | Register, Login, Logout, Password change |
+| `service.go` | Business logic: token generation, validation |
+| `repo.go` | MySQL operations via GORM |
 
-### Video (视频)
-- 视频上传 (支持流式上传)
-- 视频信息查询
-- 视频删除
-- 作者视频列表
+### Video Module
+| Component | Description |
+|-----------|-------------|
+| `video_entity.go` | Video metadata, streaming URLs |
+| `like_entity.go` | Like records with unique constraint |
+| `comment_entity.go` | Comment with threading support |
+| `*_service.go` | Upload, publish, delete, count update |
+| `*_repo.go` | Batch operations, pagination |
 
-### Like (点赞)
-- 点赞/取消点赞
-- 查询是否已点赞
-- 查询点赞列表
-- 实时更新点赞数
+### Feed Module
+| Component | Description |
+|-----------|-------------|
+| `entity.go` | Feed response models |
+| `service.go` | Multi-level caching strategy |
+| `repo.go` | SQL optimization for feeds |
 
-### Comment (评论)
-- 发表评论
-- 评论列表查询
-- 评论数统计
+### Social Module
+| Component | Description |
+|-----------|-------------|
+| `entity.go` | Follower/Following relationships |
+| `service.go` | Follow/unfollow with timeline updates |
+| `repo.go` | Bidirectional query optimization |
 
-### Feed (推荐)
-- 基于时间线的视频推荐
-- 热门视频排序
-- 多级缓存架构 (L1/L2/L3)
+## ⚙️ Configuration
 
-### Social (社交)
-- 关注/取消关注
-- 粉丝列表
-- 关注列表
-
-## 配置文件
-
-### 本地开发配置 (`configs/config.yaml`)
+### Local Development (`configs/config.yaml`)
 
 ```yaml
 server:
@@ -112,7 +148,7 @@ rabbitmq:
   password: guest
 ```
 
-### Docker 配置 (`configs/config.docker.yaml`)
+### Docker Deployment (`configs/config.docker.yaml`)
 
 ```yaml
 server:
@@ -138,12 +174,12 @@ rabbitmq:
   password: guest
 ```
 
-## 数据库设计
+## 🗄️ Database Schema
 
-### 核心表结构
+### Core Tables
 
 ```sql
--- 用户表
+-- User Account
 CREATE TABLE accounts (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(255) UNIQUE NOT NULL,
@@ -151,7 +187,7 @@ CREATE TABLE accounts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 视频表
+-- Video
 CREATE TABLE videos (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     author_id BIGINT NOT NULL,
@@ -161,10 +197,11 @@ CREATE TABLE videos (
     likes_count INT DEFAULT 0,
     comments_count INT DEFAULT 0,
     popularity INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_author_created (author_id, created_at)
 );
 
--- 点赞表
+-- Like (Unique constraint prevents duplicate likes)
 CREATE TABLE likes (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     video_id BIGINT NOT NULL,
@@ -173,16 +210,17 @@ CREATE TABLE likes (
     UNIQUE KEY idx_like_video_account (video_id, account_id)
 );
 
--- 评论表
+-- Comment
 CREATE TABLE comments (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     video_id BIGINT NOT NULL,
     account_id BIGINT NOT NULL,
     content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_video_created (video_id, created_at)
 );
 
--- 社交关系表
+-- Social (Follow relationship)
 CREATE TABLE socials (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     follower_id BIGINT NOT NULL,
@@ -192,84 +230,143 @@ CREATE TABLE socials (
 );
 ```
 
-## API 接口
+## 🔌 API Endpoints
 
-### 账户相关
-- `POST /account/register` - 注册
-- `POST /account/login` - 登录
-- `POST /account/info` - 获取用户信息
-- `POST /account/changePassword` - 修改密码
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/account/register` | Create new account |
+| POST | `/account/login` | Authenticate user |
+| POST | `/account/changePassword` | Update password |
 
-### 视频相关
-- `POST /video/publish` - 发布视频
-- `POST /video/listByAuthorID` - 获取作者视频列表
-- `POST /video/delete` - 删除视频
+### Video
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/video/publish` | Upload video |
+| POST | `/video/listByAuthorID` | Get author's videos |
+| POST | `/video/getDetail` | Get video details |
+| POST | `/video/delete` | Delete video |
 
-### 点赞相关
-- `POST /like/like` - 点赞
-- `POST /like/unlike` - 取消点赞
-- `POST /like/isLiked` - 查询是否已点赞
-- `POST /like/listLikedVideos` - 获取点赞视频列表
+### Interaction
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/like/like` | Like video |
+| POST | `/like/unlike` | Unlike video |
+| POST | `/like/isLiked` | Check like status |
+| POST | `/comment/publish` | Add comment |
+| POST | `/comment/list` | Get comments |
 
-### 评论相关
-- `POST /comment/comment` - 发表评论
-- `POST /comment/list` - 获取评论列表
+### Feed
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/feed/listLatest` | Latest videos |
+| POST | `/feed/listByPopularity` | Popular videos |
+| POST | `/feed/listByFollowing` | Following feed |
 
-### Feed 相关
-- `POST /feed/listLatest` - 获取最新视频
-- `POST /feed/listHot` - 获取热门视频
+### Social
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/social/follow` | Follow user |
+| POST | `/social/unfollow` | Unfollow user |
+| POST | `/social/getAllFollowers` | Get followers |
+| POST | `/social/getAllVloggers` | Get following |
 
-### 社交相关
-- `POST /social/follow` - 关注用户
-- `POST /social/unfollow` - 取消关注
-- `POST /social/isFollowing` - 查询是否已关注
-- `POST /social/getAllFollowers` - 获取粉丝列表
-- `POST /social/getAllVloggers` - 获取关注列表
+## 📊 Caching Strategy
 
-## 开发指南
+```
+Request ──► L1 Cache ──► L2 Cache ──► Database
+           (Local)      (Redis)       (MySQL)
+             │             │             │
+         5 seconds      1 hour      Permanent
+```
 
-### 本地开发
+### Cache Keys
+| Key Pattern | TTL | Description |
+|------------|-----|-------------|
+| `video:entity:{id}` | 1 hour | Video details |
+| `feed:latest` | 5 seconds | Latest feed |
+| `feed:popular` | 10 minutes | Popular feed |
+
+## 📬 Message Queues
+
+### Queue Architecture
+
+| Queue | Consumer | Purpose |
+|-------|----------|---------|
+| `like.events` | LikeWorker | Handle like/unlike async |
+| `comment.events` | CommentWorker | Comment notifications |
+| `social.events` | SocialWorker | Follow timeline updates |
+| `video.popularity.events` | PopularityWorker | Recalculate popularity |
+
+### Message Format
+
+```json
+{
+  "action": "like",
+  "user_id": 123,
+  "video_id": 456,
+  "timestamp": "2026-04-01T10:00:00Z"
+}
+```
+
+## 🚀 Development
+
+### Run API Server
 
 ```bash
-# 安装依赖
-go mod download
-
-# 运行 API 服务
+cd backend
 go run cmd/main.go
+```
 
-# 运行工作进程（需要单独终端）
+### Run Worker
+
+```bash
+cd backend
 go run cmd/worker/main.go
 ```
 
-### Docker 开发
+### Docker Development
 
 ```bash
 cd ../deploy/docker
 docker-compose up -d backend worker
 ```
 
-### 添加新模块
+### Add New Module
 
-1. 在 `internal/` 下创建新目录
-2. 创建 `entity.go` 定义数据结构
-3. 创建 `repo.go` 实现数据访问
-4. 创建 `service.go` 实现业务逻辑
-5. 创建 `handler.go` 实现 HTTP 接口
-6. 在 `http/router.go` 注册路由
+```bash
+# 1. Create module directory
+mkdir internal/newmodule
 
-## 性能优化
+# 2. Implement components
+touch internal/newmodule/entity.go
+touch internal/newmodule/repo.go
+touch internal/newmodule/service.go
+touch internal/newmodule/handler.go
 
-### 缓存策略
-- 视频详情: Redis 缓存 1 小时
-- Feed 列表: 多级缓存 (本地 5s + Redis 1h)
-- 热门视频: 本地缓存 10 分钟
+# 3. Register routes
+# Edit internal/http/router.go
+```
 
-### 数据库优化
-- 点赞表: 复合索引 `(video_id, account_id)`
-- 社交表: 复合索引 `(follower_id, followed_id)`
-- 视频表: 索引 `(author_id, created_at)`
+## 🧪 Testing
 
-### 异步处理
-- 点赞计数: RabbitMQ 异步更新
-- 评论计数: RabbitMQ 异步更新
-- 热度计算: 定时任务 + RabbitMQ
+```bash
+# Run all tests
+go test ./...
+
+# Run with coverage
+go test -cover ./...
+
+# Run specific module
+go test ./internal/video/...
+```
+
+## 📈 Performance Optimizations
+
+| Optimization | Implementation |
+|-------------|-----------------|
+| Connection Pooling | GORM connection pool |
+| Batch Operations | Bulk insert/update |
+| Index Optimization | Composite indexes |
+| Query Caching | Redis L2 cache |
+| Async Processing | RabbitMQ workers |
